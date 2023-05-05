@@ -14,7 +14,6 @@ app = Flask(__name__)
 @app.route("/")
 def index():
     get_image_list = get_images()
-    print(get_image_list[0])
-    # return render_template("bulletin.html", pic=get_image_list[0])
+    return render_template("bulletin.html", pic=get_image_list)
 
 app.run(host="0.0.0.0", port =80)
