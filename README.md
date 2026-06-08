@@ -2,6 +2,8 @@
 
 An interactive, real-time digital bulletin board built with Flask and SQLite. Drag-and-drop or paste notes, images, audio, and web links to organize your ideas visually.
 
+**Live Demo**: [https://bulletin-view.vercel.app/](https://bulletin-view.vercel.app/)
+
 ![BulletinView Screenshot](assets/images/screenshot.png) <!-- Placeholder for screenshot -->
 
 ## ✨ Features
@@ -26,7 +28,7 @@ An interactive, real-time digital bulletin board built with Flask and SQLite. Dr
 - Flask
 - linkpreview
 
-### Installation
+### Local Installation
 1. Clone the repository:
    ```bash
    git clone https://github.com/yourusername/BulletinView.git
@@ -34,13 +36,26 @@ An interactive, real-time digital bulletin board built with Flask and SQLite. Dr
    ```
 2. Install dependencies:
    ```bash
-   pip install flask linkpreview
+   pip install -r requirements.txt
    ```
 3. Run the application:
    ```bash
    python BulletinView.py
    ```
 4. Open your browser and navigate to `http://localhost:5000`.
+
+## ☁️ Deployment
+
+### Vercel (Serverless)
+This project is configured for easy deployment on Vercel.
+1. Push code to GitHub.
+2. Connect your repo to [Vercel](https://vercel.com).
+3. The `vercel.json` will handle the configuration.
+*Note: On Vercel, the SQLite database and media uploads are stored in `/tmp` and will reset periodically.*
+
+### Render / Railway (Persistent)
+For persistent storage, use a platform that supports persistent disks.
+- **Start Command**: `gunicorn BulletinView:app`
 
 ## 🛠 Tech Stack
 - **Backend**: Python, Flask, SQLite
