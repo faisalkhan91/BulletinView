@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Bulletin Board</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <style>
+        :root {
+            --bg-color: #f0f0f0;
+            --cork-color: #d2b48c;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(#d1d1d1 1px, transparent 1px);
+            background-size: 20px 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px; width: 26px;
+            left: 4px; bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #2196F3; }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        .board {
+            flex: 1;
+            padding: 20px;
+            position: relative;
+            overflow: auto;
+        }
+
+        /* Grid Layout */
+        .board.grid-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-auto-rows: min-content;
+            gap: 25px;
+            align-content: start;
+        }
+
+        /* Freeform Layout */
+        .board.freeform-view {
+            display: block;
+            min-height: 2000px;
+            min-width: 2000px;
+        }
+
+        .note {
+            background: #fff9c4;
+            padding: 15px;
+            border-radius: 2px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.15);
+            position: relative;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            transition: box-shadow 0.2s;
+            cursor: default;
+        }
+
+        .board.freeform-view .note {
+            position: absolute;
+            width: 250px;
+            cursor: move;
+        }
+
+        .note:hover { box-shadow: 5px 5px 15px rgba(0,0,0,0.3); }
+
+        .note-header {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 5px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .note:hover .note-header { opacity: 1; }
+
+        .note-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 2px;
+            color: #666;
+        }
+        .note-btn:hover { color: #000; }
+
+        .note-content {
+            flex: 1;
+            font-size: 1rem;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* FAB */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: #2196F3;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 200;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .fab:hover { transform: scale(1.1); }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        }
+        .modal-content h2 { margin-top: 0; }
+        .modal-content textarea {
+            width: 100%;
+            height: 120px;
+            margin: 10px 0;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .color-opt {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .color-opt.active { border-color: #333; }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-primary { background: #2196F3; color: white; }
+        .btn-secondary { background: #eee; }
+
+        /* Note Types */
+        .link-preview img { width: 100%; border-radius: 4px; margin-bottom: 5px; }
+        .link-title { font-weight: bold; font-size: 0.9rem; }
+        .link-desc { font-size: 0.8rem; color: #666; }
+        audio { width: 100%; margin-top: 5px; }
+        img.note-img { width: 100%; border-radius: 4px; }
+
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📌 Bulletin Board</h1>
+        <div class="controls">
+            <span>Grid</span>
+            <label class="switch">
+                <input type="checkbox" id="layoutToggle">
+                <span class="slider"></span>
+            </label>
+            <span>Freeform</span>
+            <div id="status" style="font-size: 0.8rem; margin-left: 20px;"></div>
+        </div>
+    </header>
+
+    <div class="board grid-view" id="board">
+        {% for note in notes %}
+        <div class="note" id="note-{{ note.id }}" 
+             style="background-color: {{ note.color }}; left: {{ note.pos_x }}px; top: {{ note.pos_y }}px;"
+             data-id="{{ note.id }}"
+             data-type="{{ note.type }}"
+             data-color="{{ note.color }}">
+            <div class="note-header">
+                <button class="note-btn" onclick="openEditModal({{ note.id }})">✎</button>
+                <button class="note-btn" onclick="deleteNote({{ note.id }})">🗑</button>
+            </div>
+            <div class="note-content">
+                {% if note.type == 'link' %}
+                    <a href="{{ note.metadata.url }}" target="_blank" style="text-decoration:none; color:inherit;">
+                        {% if note.metadata.image %}<img src="{{ note.metadata.image }}" alt="preview">{% endif %}
+                        <div class="link-title">{{ note.metadata.title or note.metadata.url }}</div>
+                        <div class="link-desc">{{ note.metadata.description or '' }}</div>
+                    </a>
+                {% elif note.type == 'audio' %}
+                    <div style="font-weight:bold; margin-bottom:5px;">{{ note.content }}</div>
+                    <audio controls src="{{ note.metadata.url }}"></audio>
+                {% elif note.type == 'image' %}
+                    <img src="{{ note.metadata.url }}" class="note-img">
+                {% else %}
+                    {{ note.content }}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <button class="fab" onclick="openAddModal()">+</button>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="noteModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add Note</h2>
+            <textarea id="noteText" placeholder="Write something or paste a link..."></textarea>
+            <div class="color-picker">
+                <div class="color-opt active" style="background:#fff9c4" data-color="#fff9c4"></div>
+                <div class="color-opt" style="background:#e3f2fd" data-color="#e3f2fd"></div>
+                <div class="color-opt" style="background:#f3e5f5" data-color="#f3e5f5"></div>
+                <div class="color-opt" style="background:#e8f5e9" data-color="#e8f5e9"></div>
+                <div class="color-opt" style="background:#ffffff" data-color="#ffffff"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" id="saveBtn" onclick="saveNote()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentNoteId = null;
+        let selectedColor = "#fff9c4";
+
+        $(document).ready(function() {
+            // Load preferred layout from localStorage
+            const savedLayout = localStorage.getItem('bulletinLayout') || 'grid';
+            if (savedLayout === 'freeform') {
+                $('#layoutToggle').prop('checked', true);
+                switchLayout(true);
+            }
+
+            $('#layoutToggle').on('change', function() {
+                switchLayout(this.checked);
+            });
+
+            $('.color-opt').on('click', function() {
+                $('.color-opt').removeClass('active');
+                $(this).addClass('active');
+                selectedColor = $(this).data('color');
+            });
+        });
+
+        function switchLayout(isFreeform) {
+            const board = $('#board');
+            if (isFreeform) {
+                board.removeClass('grid-view').addClass('freeform-view');
+                localStorage.setItem('bulletinLayout', 'freeform');
+                enableDragging();
+            } else {
+                board.removeClass('freeform-view').addClass('grid-view');
+                localStorage.setItem('bulletinLayout', 'grid');
+                disableDragging();
+            }
+        }
+
+        function enableDragging() {
+            $(".note").draggable({
+                containment: "parent",
+                stop: function(event, ui) {
+                    const id = $(this).data('id');
+                    const pos = ui.position;
+                    updateNote(id, { pos_x: pos.left, pos_y: pos.top });
+                }
+            });
+        }
+
+        function disableDragging() {
+            if ($(".note").data("ui-draggable")) {
+                $(".note").draggable("destroy");
+            }
+            $(".note").css({ top: '', left: '' }); // reset positions for grid
+        }
+
+        function openAddModal() {
+            currentNoteId = null;
+            $('#modalTitle').text('Add Note');
+            $('#noteText').val('');
+            $('#noteModal').css('display', 'flex');
+        }
+
+        function openEditModal(id) {
+            currentNoteId = id;
+            const note = $(`#note-${id}`);
+            const content = note.find('.note-content').text().trim();
+            const color = note.data('color');
+            
+            $('#modalTitle').text('Edit Note');
+            $('#noteText').val(content);
+            $(`.color-opt[data-color="${color}"]`).click();
+            $('#noteModal').css('display', 'flex');
+        }
+
+        function closeModal() {
+            $('#noteModal').hide();
+        }
+
+        function saveNote() {
+            const content = $('#noteText').val();
+            const data = { content: content, color: selectedColor };
+            
+            if (currentNoteId) {
+                updateNote(currentNoteId, data, true);
+            } else {
+                addNote(data);
+            }
+        }
+
+        function addNote(data) {
+            $('#status').text('Saving...');
+            $.ajax({
+                url: '/add-note',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: () => { location.reload(); },
+                error: () => { alert('Failed to add note'); }
+            });
+        }
+
+        function updateNote(id, data, reload = false) {
+            $('#status').text('Updating...');
+            $.ajax({
+                url: `/update-note/${id}`,
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: () => { 
+                    $('#status').text('Saved'); 
+                    if (reload) location.reload();
+                },
+                error: () => { $('#status').text('Update failed'); }
+            });
+        }
+
+        function deleteNote(id) {
+            if (!confirm('Are you sure you want to delete this note?')) return;
+            $('#status').text('Deleting...');
+            $.ajax({
+                url: `/delete-note/${id}`,
+                type: 'DELETE',
+                success: () => { location.reload(); },
+                error: () => { alert('Failed to delete note'); }
+            });
+        }
+
+        // Paste support for files
+        window.addEventListener('paste', (e) => {
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf("image") !== -1 || items[i].type.indexOf("audio") !== -1) {
+                    const blob = items[i].getAsFile();
+                    const formData = new FormData();
+                    formData.append('file', blob);
+                    $('#status').text('Uploading media...');
+                    $.ajax({
+                        url: '/upload-media',
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: () => location.reload(),
+                        error: () => alert('Upload failed')
+                    });
+                    return;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
