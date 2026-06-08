@@ -2,18 +2,37 @@
 import os
 import sqlite3
 import json
+import shutil
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from os import listdir, makedirs
 from linkpreview import link_preview
 
 app = Flask(__name__)
 
+# Environment check for Vercel or other serverless platforms
+IS_SERVERLESS = os.environ.get('VERCEL') == '1' or os.environ.get('SERVERLESS') == '1'
+
+if IS_SERVERLESS:
+    DATA_DIR = "/tmp"
+    ASSETS_UPLOAD_DIR = "/tmp/assets"
+else:
+    DATA_DIR = "."
+    ASSETS_UPLOAD_DIR = "assets"
+
+DB_PATH = os.path.join(DATA_DIR, 'bulletin.db')
+IMAGES_DIR = os.path.join(ASSETS_UPLOAD_DIR, "images")
+AUDIO_DIR = os.path.join(ASSETS_UPLOAD_DIR, "audio")
+
 # Ensure asset directories exist
-makedirs("assets/images", exist_ok=True)
-makedirs("assets/audio", exist_ok=True)
+makedirs(IMAGES_DIR, exist_ok=True)
+makedirs(AUDIO_DIR, exist_ok=True)
+
+# Copy existing DB if it exists and we're in serverless mode to preserve initial state
+if IS_SERVERLESS and os.path.exists('bulletin.db') and not os.path.exists(DB_PATH):
+    shutil.copy('bulletin.db', DB_PATH)
 
 def get_db_connection():
-    conn = sqlite3.connect('bulletin.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -67,6 +86,13 @@ def index():
 
 @app.route('/assets/<path:path>')
 def send_assets(path):
+    # Try serving from the temporary upload directory first (for newly uploaded files)
+    if IS_SERVERLESS:
+        tmp_path = os.path.join(ASSETS_UPLOAD_DIR, path)
+        if os.path.exists(tmp_path):
+            return send_from_directory(ASSETS_UPLOAD_DIR, path)
+    
+    # Fallback to the original assets directory
     return send_from_directory('assets', path)
 
 @app.route("/upload-media", methods=["POST"])
@@ -80,7 +106,7 @@ def upload_media():
     
     filename = file.filename
     if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
-        save_path = os.path.join("assets/images", filename)
+        save_path = os.path.join(IMAGES_DIR, filename)
         file.save(save_path)
         
         # Create a note for the image
@@ -92,7 +118,7 @@ def upload_media():
         return jsonify({"success": True, "type": "image", "url": f"/assets/images/{filename}"})
     
     if filename.lower().endswith(('.mp3', '.wav', '.ogg')):
-        save_path = os.path.join("assets/audio", filename)
+        save_path = os.path.join(AUDIO_DIR, filename)
         file.save(save_path)
         
         # Also create a note for the audio
