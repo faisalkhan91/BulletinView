@@ -2,7 +2,7 @@
 
 An interactive, real-time digital bulletin board built with Flask and SQLite. Drag-and-drop or paste notes, images, audio, and web links to organize your ideas visually.
 
-![BulletinView Screenshot](assets/images/screenshot.jpg) <!-- Placeholder for screenshot -->
+![BulletinView Screenshot](assets/images/screenshot.png) <!-- Placeholder for screenshot -->
 
 ## ✨ Features
 
